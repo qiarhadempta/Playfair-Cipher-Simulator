@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulasi Playfair Cipher</title>
+<style>
+:root{--bg:#000;--panel:#0c0c0c;--line:#2a2a2a;--text:#f0f0f0;--mut:#9a9a9a;--amber:#f2a900;--teal:#3fc1d4;--coral:#ff6b4a;
+--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1040px;margin:0 auto;padding:32px 20px 64px}
+h1{font:700 clamp(28px,5vw,44px)/1.1 var(--serif);margin:0 0 8px}
+.lead{color:var(--mut);margin:0 0 28px;max-width:62ch}
+.controls{display:grid;gap:16px;grid-template-columns:1fr 2fr;margin-bottom:28px}
+@media(max-width:760px){.controls,.work{grid-template-columns:1fr!important}}
+label{display:block;font-weight:600;margin-bottom:6px}
+input,textarea{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font:18px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+textarea{resize:vertical;min-height:76px}
+input:focus,textarea:focus,button:focus-visible,tr:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:28px}
+button{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:9px 14px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--mut)}
+.seg button{border-radius:0}.seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0;border-left:0}
+.seg button[aria-pressed=true]{background:var(--amber);border-color:var(--amber);color:#000;font-weight:700}
+.work{display:grid;grid-template-columns:minmax(0,auto) 1fr;gap:36px;align-items:start}
+h2{font:700 22px/1.2 var(--serif);margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(5,var(--c));gap:6px;--c:clamp(48px,11vw,76px)}
+.cell{width:var(--c);height:var(--c);display:grid;place-items:center;border:1px solid var(--line);border-radius:6px;font:700 clamp(20px,5vw,30px) var(--mono);color:var(--mut);transition:background .15s,color .15s}
+.cell.key{color:var(--amber);border-color:#5a4300}
+.cell.src{color:#000;border-color:transparent;background:var(--rc)}
+.cell.dst{color:var(--text);border:2px solid var(--rc);box-shadow:0 0 0 2px #000 inset}
+.cell small{font-size:.55em}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;color:var(--mut);font-size:14px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.prep{font:20px var(--mono);letter-spacing:.12em;margin:0 0 14px;word-break:break-all}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;color:var(--mut);font-weight:600;font-size:14px;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:18px}
+td.r{font:14px system-ui,sans-serif}
+tr.row{cursor:pointer}tr.row[aria-selected=true]{background:#161616}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;border:1px solid var(--rc);color:var(--rc)}
+.out{margin-top:28px;border:1px solid var(--line);border-radius:8px;padding:16px;background:var(--panel)}
+.out p{margin:0 0 6px;color:var(--mut)}
+.out output{display:block;font:700 24px var(--mono);letter-spacing:.14em;word-break:break-all;color:var(--amber);min-height:1.5em}
+.err{color:var(--coral);margin:0 0 12px}
+.note{color:var(--mut);font-size:14px;margin-top:20px;max-width:70ch}
+@media(prefers-reduced-motion:reduce){.cell{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>Simulasi Playfair Cipher</h1>
+<p class="lead">Ketik kunci dan pesan, lalu lihat tiap pasangan huruf diproses di matriks 5×5. Klik satu baris langkah untuk menyorot sel yang terlibat.</p>
+
+<div class="controls">
+ <div><label for="key">Kunci</label><input id="key" value="BALLOON" autocomplete="off" spellcheck="false"></div>
+ <div><label for="text" id="tl">Plaintext</label><textarea id="text" spellcheck="false">SECRET MESSAGE</textarea></div>
+</div>
+<div class="bar">
+ <div class="seg" role="group" aria-label="Mode">
+  <button id="menc" aria-pressed="true">Enkripsi</button><button id="mdec" aria-pressed="false">Dekripsi</button>
+ </div>
+ <button id="ex">Pakai contoh BALLOON</button>
+ <button id="prev">Sebelumnya</button><button id="next">Berikutnya</button>
+</div>
+
+<div class="work">
+ <section aria-labelledby="hm">
+  <h2 id="hm">Matriks 5×5</h2>
+  <div class="grid" id="grid"></div>
+  <div class="legend">
+   <span><i class="dot" style="background:var(--teal)"></i>Satu baris</span>
+   <span><i class="dot" style="background:var(--amber)"></i>Satu kolom</span>
+   <span><i class="dot" style="background:var(--coral)"></i>Persegi panjang</span>
+  </div>
+  <div class="legend"><span>Huruf kunci berwarna kuning. Huruf awal terisi warna, hasilnya berbingkai.</span></div>
+ </section>
+ <section aria-labelledby="hs">
+  <h2 id="hs">Langkah per pasangan</h2>
+  <p class="prep" id="prep"></p>
+  <p class="err" id="err" role="alert"></p>
+  <table><thead><tr><th>Pasangan</th><th>Aturan</th><th>Hasil</th></tr></thead><tbody id="rows"></tbody></table>
+ </section>
+</div>
+
+<div class="out"><p id="ol">Ciphertext</p><output id="out" aria-live="polite"></output></div>
+<p class="note">Catatan: J digabung dengan I. Huruf kembar dalam satu pasangan dipisah dengan X (atau Q jika hurufnya X). Itu konvensi, bukan aturan baku. Saat dekripsi, hapus sendiri X sisipan dengan melihat konteks pesan.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const RULE={baris:["Satu baris","var(--teal)"],kolom:["Satu kolom","var(--amber)"],persegi:["Persegi panjang","var(--coral)"]};
+let mode="enc",sel=0,steps=[],M=[];
+const norm=s=>s.toUpperCase().replace(/J/g,"I").replace(/[^A-Z]/g,"");
+function build(k){const a=[];for(const c of norm(k)+"ABCDEFGHIKLMNOPQRSTUVWXYZ")if(!a.includes(c))a.push(c);return a}
+function prep(t){const o=[];let i=0;while(i<t.length){const a=t[i],b=t[i+1],f=a==="X"?"Q":"X";if(b===undefined||a===b){o.push([a,f]);i++}else{o.push([a,b]);i+=2}}return o}
+function move(a,b,d){const p=M.indexOf(a),q=M.indexOf(b),r1=p/5|0,c1=p%5,r2=q/5|0,c2=q%5;let x,y,rule;
+ if(r1===r2){rule="baris";x=r1*5+(c1+d+5)%5;y=r2*5+(c2+d+5)%5}
+ else if(c1===c2){rule="kolom";x=((r1+d+5)%5)*5+c1;y=((r2+d+5)%5)*5+c2}
+ else{rule="persegi";x=r1*5+c2;y=r2*5+c1}
+ return{pair:a+b,out:M[x]+M[y],rule,src:[p,q],dst:[x,y]}}
+function run(){
+ const key=norm($("key").value),text=norm($("text").value);M=build(key);steps=[];$("err").textContent="";
+ let pairs;
+ if(mode==="enc")pairs=prep(text);
+ else{pairs=[];if(text.length%2)$("err").textContent="Ciphertext harus berjumlah genap.";
+  for(let i=0;i+1<text.length;i+=2){if(text[i]===text[i+1]){$("err").textContent="Ciphertext Playfair tidak memiliki pasangan berhuruf kembar ("+text[i]+text[i+1]+"). Periksa lagi pesannya.";pairs=[];break}pairs.push([text[i],text[i+1]])}}
+ steps=pairs.map(p=>move(p[0],p[1],mode==="enc"?1:-1));
+ if(sel>=steps.length)sel=Math.max(0,steps.length-1);
+ $("prep").textContent=pairs.length?pairs.map(p=>p.join("")).join("  "):"";
+ $("out").textContent=steps.map(s=>s.out).join("");
+ $("rows").innerHTML=steps.map((s,i)=>`<tr class="row" tabindex="0" data-i="${i}" aria-selected="${i===sel}"><td>${s.pair}</td><td class="r"><span class="chip" style="--rc:${RULE[s.rule][1]}">${RULE[s.rule][0]}</span></td><td>${s.out}</td></tr>`).join("");
+ paint()}
+function paint(){
+ const st=steps[sel],kk=new Set(norm($("key").value));
+ $("grid").innerHTML=M.map((c,i)=>{let cl="cell";if(kk.has(c))cl+=" key";let st2="";
+  if(st){const rc=RULE[st.rule][1];if(st.src.includes(i)){cl+=" src";st2=`--rc:${rc}`}else if(st.dst.includes(i)){cl+=" dst";st2=`--rc:${rc}`}}
+  return`<div class="${cl}" style="${st2}">${c==="I"?"I<small>/J</small>":c}</div>`}).join("");
+ document.querySelectorAll("#rows tr").forEach(r=>r.setAttribute("aria-selected",+r.dataset.i===sel))}
+function pick(i){if(!steps.length)return;sel=(i+steps.length)%steps.length;paint()}
+function setMode(m){mode=m;$("menc").setAttribute("aria-pressed",m==="enc");$("mdec").setAttribute("aria-pressed",m==="dec");
+ $("tl").textContent=m==="enc"?"Plaintext":"Ciphertext";$("ol").textContent=m==="enc"?"Ciphertext":"Plaintext (X sisipan masih ada)";sel=0;run()}
+$("key").addEventListener("input",run);$("text").addEventListener("input",()=>{sel=0;run()});
+$("menc").onclick=()=>setMode("enc");$("mdec").onclick=()=>setMode("dec");
+$("prev").onclick=()=>pick(sel-1);$("next").onclick=()=>pick(sel+1);
+$("ex").onclick=()=>{$("key").value="BALLOON";if(mode==="enc")$("text").value="SECRET MESSAGE";else $("text").value="XKDQFSKFXLRLCF";sel=0;run()};
+$("rows").addEventListener("click",e=>{const r=e.target.closest("tr");if(r)pick(+r.dataset.i)});
+$("rows").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const r=e.target.closest("tr");if(r){e.preventDefault();pick(+r.dataset.i)}}});
+run();
+</script>
+</body>
+</html>
